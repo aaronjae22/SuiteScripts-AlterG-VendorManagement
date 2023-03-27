@@ -6,9 +6,9 @@
 
 
 // This is Script contains Vendor Management Validations.
-define (['N/record','N/ui/message','N/runtime'] ,
+define (['N/record','N/ui/message','N/runtime', 'N/search'] ,
 
-    function (record, message, runtime) {
+    function (record, message, runtime, search) {
 
         const SETUP_RECORD_TYPE = 'customrecord_vendor_management_setup';
 
@@ -88,9 +88,9 @@ define (['N/record','N/ui/message','N/runtime'] ,
             */
 
             //Approved, Restricted
-            if (customFieldValue != '1' && customFieldValue != '6') {
-
-                let messageStr = "You can't use this Supplier because it status isn't Approved or Restricted!";
+            //if (customFieldValue != '1' && customFieldValue != '6') {
+            if (customFieldValue != '1') {
+                let messageStr = "Sorry, Vendor status MUST be approved in order to create a Transaction!";
                 if(displayMessage)
                 {
                     let myMsg3 = message.create({
@@ -263,7 +263,15 @@ define (['N/record','N/ui/message','N/runtime'] ,
         }
 
 
-
+        const showWarningMessage = (messageStr) => {
+            let myMsg3 = message.create({
+                title: 'Supplier Management Validation',
+                message: messageStr,
+                type: message.Type.WARNING,
+                duration: 10000
+            });
+            myMsg3.show();
+        }
 
 
         const validateVendorStatus = (scriptContext, showMessage) =>{
@@ -316,6 +324,33 @@ define (['N/record','N/ui/message','N/runtime'] ,
             });
             return supplierAdminUser;
         }
+        const getConfig = (currentUserId)=>{
+            const filters = [['isinactive', 'is', 'F']];
+            const columns = ['custrecord_employee_vendor_manager_setup','custrecord_vendor_classification_admin'];
+            const searchSet = search.create({type: 'customrecord_vendor_management_setup', filters: filters, columns: columns});
+            let results = [];
+            searchSet.run().each(res =>{
+                let vendorCreators = res.getValue({name:'custrecord_employee_vendor_manager_setup'});
+                vendorCreators = vendorCreators.split(',');
+                vendorCreators = vendorCreators.map(vId => parseInt(vId));
+
+                let statusAndDateEditors = res.getValue({name: 'custrecord_vendor_classification_admin'});
+                statusAndDateEditors = statusAndDateEditors.split(',');
+                statusAndDateEditors = statusAndDateEditors.map(eId => parseInt(eId));
+
+                results.push({
+                    creators: vendorCreators,
+                    editors: statusAndDateEditors
+                });
+            });
+            if(results && results.length > 0){
+                const vendorConfig = results[0];
+                let canCurrentUserCreate = vendorConfig.creators.includes(currentUserId);
+                let canCurrentUserEdit = vendorConfig.editors.includes(currentUserId);
+                return {'canCurrentUserCreate' : canCurrentUserCreate, 'canCurrentUserEdit' : canCurrentUserEdit};
+            }
+            return results;
+        }
 
         // Add the return statement that identifies the entry point funtion.
         return {
@@ -327,6 +362,8 @@ define (['N/record','N/ui/message','N/runtime'] ,
             isVendorClassificationAdminUser,
             getVendorDocumentRequirementsByClass,
             validateDatesStatus,
+            getConfig,
+            showWarningMessage,
             SETUP_RECORD_TYPE,
 
              DOC_STATUS_ACTIVE,

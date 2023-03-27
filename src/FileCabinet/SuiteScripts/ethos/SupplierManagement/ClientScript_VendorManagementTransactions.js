@@ -8,10 +8,6 @@
 //This will be used to validate Vendor in Purchase Order and Vendor Payment forms
 
 define(['N/record', 'N/runtime','./VendorManagementCommon'],
-/**
- * @param{record} record
- * @param{runtime} runtime
- */
 function(record, runtime, vendorMgm) {
     
     /**
@@ -24,8 +20,11 @@ function(record, runtime, vendorMgm) {
      * @since 2015.2
      */
     function pageInit(scriptContext) {
-
+          
            validateVendor(scriptContext);
+
+
+
     }
 
     /**

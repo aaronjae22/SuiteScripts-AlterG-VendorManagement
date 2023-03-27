@@ -2,11 +2,11 @@
  * @NApiVersion 2.1
  * @NScriptType UserEventScript
  */
-define(['N/record','N/runtime','N/ui/serverWidget','./VendorManagementCommon'],
+define(['N/search','N/record','N/runtime','N/ui/serverWidget','./VendorManagementCommon'],
     /**
  * @param{record} record
  */
-    (record, runtime ,serverWidget, vendorMgm) => {
+    (search, record, runtime ,serverWidget, vendorMgm) => {
         /**
          * Defines the function definition that is executed before record is loaded.
          * @param {Object} scriptContext
@@ -17,17 +17,21 @@ define(['N/record','N/runtime','N/ui/serverWidget','./VendorManagementCommon'],
          * @since 2015.2
          */
         const beforeLoad = (scriptContext) => {
-
+            let form = scriptContext.form;
+            const currentUserId = runtime.getCurrentUser().id;
             if (scriptContext.type === scriptContext.UserEventType.VIEW) {
-                let form = scriptContext.form;
+
 
                 let statusId = scriptContext.newRecord.getValue('custentity_vendor_status');
+                if(statusId !== '1'){
+                    form.removeButton({id: 'payment'});// hide the Make Payment button from vendor ui
+                }
 
                 if(!statusId) //no valid status
                     return;
 
 
-                log.debug({title:'Status: ' + statusId, details: scriptContext.newRecord })
+                //log.debug({title:'Status: ' + statusId, details: scriptContext.newRecord })
 
                 let color = 'green';
 
@@ -56,7 +60,42 @@ define(['N/record','N/runtime','N/ui/serverWidget','./VendorManagementCommon'],
             }
 
 
+            const isCreate =  scriptContext.type === scriptContext.UserEventType.CREATE;
+            const isEdit =  scriptContext.type === scriptContext.UserEventType.EDIT;
+            const isCreateOrEdit = isCreate || isEdit;
+
+
+
+            if(!isCreateOrEdit) return;
+            //if(currentUserId !== 12224) return;
+            const vendorConfig = vendorMgm.getConfig(currentUserId);
+
+            if(vendorConfig && (vendorConfig.canCurrentUserCreate || vendorConfig.canCurrentUserEdit)){
+                let canCurrentUserCreate = vendorConfig.canCurrentUserCreate;
+                let canCurrentUserEdit = vendorConfig.canCurrentUserEdit;
+               if(isCreate && !canCurrentUserCreate){
+                   disabledFields(form);
+               }else if(isEdit && !canCurrentUserEdit){
+                   disabledFields(form);
+               }
+               if(isCreate && canCurrentUserCreate){
+                   scriptContext.newRecord.setValue({fieldId: 'custentity_vendor_status', value: 8});
+                   disabledFields(form);
+               }
+
+            }else{
+                disabledFields(form);
+            }
         }
+        const disabledFields = (form)=>{
+            let fieldIds = ['custentity_vendor_doc_expiration_date', 'custentity_vendor_status', 'custentity_vendor_item_classification'];
+            fieldIds.forEach(fieldId =>{
+                let field = form.getField(fieldId);
+                field.updateDisplayType({ displayType: serverWidget.FieldDisplayType.DISABLED});
+            });
+
+        }
+
 
         /**
          * Defines the function definition that is executed before record is submitted.
